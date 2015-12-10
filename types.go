@@ -21,6 +21,10 @@ var (
 
 var structs = newStructCache()
 
+func FieldsForType(typ reflect.Type) fields {
+	return structs.Fields(typ)
+}
+
 func appendIfaceValue(dst []byte, v reflect.Value, quote bool) []byte {
 	return appendIface(dst, v.Interface(), quote)
 }
@@ -72,6 +76,7 @@ func getDecoder(typ reflect.Type) valueDecoder {
 type field struct {
 	Name   string
 	PGName string
+	Source reflect.StructField
 	index  []int
 	flags  int8
 
@@ -86,6 +91,10 @@ func (f *field) Is(flag int8) bool {
 func (f *field) IsEmpty(v reflect.Value) bool {
 	fv := v.FieldByIndex(f.index)
 	return isEmptyValue(fv)
+}
+
+func (f *field) IsTopLevel() bool {
+	return len(f.index) == 1
 }
 
 func (f *field) AppendValue(dst []byte, v reflect.Value, quote bool) []byte {
@@ -245,9 +254,10 @@ func getFields(typ reflect.Type) fields {
 		}
 
 		field := &field{
-			Name:  name,
-			index: f.Index,
-			flags: flags,
+			Name:   name,
+			Source: f,
+			index:  f.Index,
+			flags:  flags,
 
 			appender: getAppender(fieldType),
 			decoder:  getDecoder(fieldType),
